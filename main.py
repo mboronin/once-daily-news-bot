@@ -4,10 +4,12 @@
 import logging
 import config
 from datetime import time
-
+import telegram
 from telegram.ext import (Updater, CommandHandler)
 
 # Enable logging
+from parser import Parser
+
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 
@@ -35,6 +37,11 @@ def construct_message(name):
             message += v + " (<a href='" + k + "'>Линк</a>)\n\n"
     return message
 
+def instant_send(bot, update):
+    bot.send_message(chat_id=update.message.chat_id, text=construct_message("rbc"), parse_mode=telegram.ParseMode.HTML)
+    bot.send_message(chat_id=update.message.chat_id, text=construct_message("vedomosti"), parse_mode=telegram.ParseMode.HTML)
+    bot.send_message(chat_id=update.message.chat_id, text=construct_message("kommersant"), parse_mode=telegram.ParseMode.HTML)
+    bot.send_message(chat_id=update.message.chat_id, text=construct_message("yandex"), parse_mode=telegram.ParseMode.HTML)
 
 def callback_alarm(bot, job):
     bot.send_message(chat_id=job.context, text=construct_message("rbc"), parse_mode=telegram.ParseMode.HTML)
@@ -44,7 +51,8 @@ def callback_alarm(bot, job):
 
 
 def callback_timer(bot, update, job_queue):
-    bot.send_message(chat_id=update.message.chat_id, text="Добро пожаловать! Ждите от нас новости в 20.00 по Москве!")
+    bot.send_message(chat_id=update.message.chat_id, text="Добро пожаловать! Ждите от нас новости в 20.00 по Москве!\n"
+                                                          "Хотите раньше? Напишите нам /now")
     job_queue.run_daily(callback_alarm, context=update.message.chat_id,
                         time=time(hour=17, minute=00, second=00))
 
@@ -56,6 +64,7 @@ def Stop_timer(bot, update, job_queue):
 
 
 updater = Updater(config.token)
+updater.dispatcher.add_handler(CommandHandler('now', instant_send))
 updater.dispatcher.add_handler(CommandHandler('start', callback_timer, pass_job_queue=True))
 updater.dispatcher.add_handler(CommandHandler('stop', Stop_timer, pass_job_queue=True))
 updater.start_polling()
