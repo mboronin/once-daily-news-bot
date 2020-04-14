@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# This program is dedicated to the public domain under the CC0 license.
-import logging
+import os
+import time
+
 import config
 from datetime import time
 import telegram
@@ -10,10 +10,34 @@ from telegram.ext import (Updater, CommandHandler)
 # Enable logging
 from parser import Parser
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
+import logging
 
-logger = logging.getLogger(__name__)
+format = "%(asctime) %(message)s"
+logging.basicConfig(format=format, level=logging.INFO, datefmt='%Y-%m-%d %H:%M:%S')
+logger = logging.getLogger('main')
+
+
+def get_message(name):
+    logger.info("Getting message")
+    if time.time() - os.path.getmtime(name) < 7200:
+        logger.info("Getting from file")
+        return get_from_file(name)
+    else:
+        logger.info("Getting from web")
+        message = construct_message(name)
+        save_to_file(message, name)
+        return message
+
+
+def get_from_file(file):
+    with open(file, 'r') as f:
+        return f.read()
+
+
+def save_to_file(data, name):
+    logger.info("saving to file")
+    with open(name, "w") as f:
+        f.write(data)
 
 
 def construct_message(name):
@@ -37,29 +61,38 @@ def construct_message(name):
             message += v + " (<a href='" + k + "'>Линк</a>)\n\n"
     return message
 
+
 def instant_send(bot, update):
-    bot.send_message(chat_id=update.message.chat_id, text=construct_message("rbc"), parse_mode=telegram.ParseMode.HTML)
-    bot.send_message(chat_id=update.message.chat_id, text=construct_message("vedomosti"), parse_mode=telegram.ParseMode.HTML)
-    bot.send_message(chat_id=update.message.chat_id, text=construct_message("kommersant"), parse_mode=telegram.ParseMode.HTML)
-    bot.send_message(chat_id=update.message.chat_id, text=construct_message("yandex"), parse_mode=telegram.ParseMode.HTML)
+    logger.info("Instant sending started to user " + update.message.chat_id)
+    bot.send_message(chat_id=update.message.chat_id, text=get_message("rbc"), parse_mode=telegram.ParseMode.HTML)
+    bot.send_message(chat_id=update.message.chat_id, text=get_message("vedomosti"), parse_mode=telegram.ParseMode.HTML)
+    bot.send_message(chat_id=update.message.chat_id, text=get_message("kommersant"), parse_mode=telegram.ParseMode.HTML)
+    bot.send_message(chat_id=update.message.chat_id, text=get_message("yandex"), parse_mode=telegram.ParseMode.HTML)
+    logger.info("Instant sending ended to user " + update.message.chat_id)
+
 
 def callback_alarm(bot, job):
-    bot.send_message(chat_id=job.context, text=construct_message("rbc"), parse_mode=telegram.ParseMode.HTML)
-    bot.send_message(chat_id=job.context, text=construct_message("vedomosti"), parse_mode=telegram.ParseMode.HTML)
-    bot.send_message(chat_id=job.context, text=construct_message("kommersant"), parse_mode=telegram.ParseMode.HTML)
-    bot.send_message(chat_id=job.context, text=construct_message("yandex"), parse_mode=telegram.ParseMode.HTML)
+    logger.info("Timer sending started to user " + job.context)
+    bot.send_message(chat_id=job.context, text=get_message("rbc"), parse_mode=telegram.ParseMode.HTML)
+    bot.send_message(chat_id=job.context, text=get_message("vedomosti"), parse_mode=telegram.ParseMode.HTML)
+    bot.send_message(chat_id=job.context, text=get_message("kommersant"), parse_mode=telegram.ParseMode.HTML)
+    bot.send_message(chat_id=job.context, text=get_message("yandex"), parse_mode=telegram.ParseMode.HTML)
+    logger.info("Timer sending ended to user " + job.context)
 
 
 def callback_timer(bot, update, job_queue):
+    logger.info("Timer ticked")
     bot.send_message(chat_id=update.message.chat_id, text="Добро пожаловать! Ждите от нас новости в 20.00 по Москве!\n"
                                                           "Хотите раньше? Напишите нам /now")
     job_queue.run_daily(callback_alarm, context=update.message.chat_id,
                         time=time(hour=17, minute=00, second=00))
+    logger.info("Message sent")
 
 
 def Stop_timer(bot, update, job_queue):
     bot.send_message(chat_id=update.message.chat_id,
                      text='Спасибо за дружбу!')
+    logger.info("User " + update.message.chat_id + " unsubscribed")
     job_queue.stop()
 
 
