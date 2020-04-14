@@ -19,7 +19,7 @@ logger = logging.getLogger('main')
 
 def get_message(name):
     logger.info("Getting message")
-    if time.time() - os.path.getmtime(name) < 7200:
+    if os.path.isfile(name) & time.time() - os.path.getmtime(name) < 7200:
         logger.info("Getting from file")
         return get_from_file(name)
     else:
